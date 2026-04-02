@@ -27,6 +27,26 @@ redis.call("DEL", "mrubyedge_test_key")
 }
 
 #[test]
+fn test_redis_new_with_url() {
+    let code = r##"
+redis = Redis.new(url: "redis://127.0.0.1:6379")
+redis.call("SET", "mrubyedge_url_test", "from_url")
+val = redis.call("GET", "mrubyedge_url_test")
+assert_eq(val, "from_url")
+redis.call("DEL", "mrubyedge_url_test")
+"##;
+
+    let binary = mrbc_compile("redis_new_url", code);
+    let mut rite = mrubyedge::rite::load(&binary).unwrap();
+    let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
+    mrubyedge_redis::init_redis(&mut vm);
+    define_assert_eq(&mut vm);
+    let result = vm.run().unwrap();
+    let deleted: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(deleted, 1);
+}
+
+#[test]
 fn test_redis_pool_checkout_checkin() {
     let code = r##"
 pool = RedisConnectionPool.new(size: 2, timeout: 5, host: "127.0.0.1", port: 6379)
