@@ -313,7 +313,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "mrubyedge"
-version = "1.1.8"
+version = "1.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c723558424519e868a2e6fe83b9e741820e9c73852531de86a8717b7a14b3906"
 dependencies = [
  "plain",
  "simple_endian",
