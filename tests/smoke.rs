@@ -20,7 +20,10 @@ redis.call("DEL", "mrubyedge_test_key")
     let mut rite = mrubyedge::rite::load(&binary).unwrap();
     let mut vm = mrubyedge::yamrb::vm::VM::open(&mut rite);
     mrubyedge_redis::init_redis(&mut vm);
-    assert!(vm.run().unwrap().is_nil());
+    define_assert_eq(&mut vm);
+    let result = vm.run().unwrap();
+    let deleted: i32 = result.as_ref().try_into().unwrap();
+    assert_eq!(deleted, 1);
 }
 
 #[test]
