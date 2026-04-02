@@ -1,0 +1,16 @@
+[package]
+name = "mrubyedge-redis"
+version = "0.1.0"
+edition = "2024"
+authors = ["Uchio Kondo <udzura@udzura.jp>"]
+description = "mrubyedge-redis provides Redis and RedisConnectionPool classes for mruby/edge"
+license = "BSD-3-Clause"
+
+[dependencies]
+mrubyedge = { path = "../mrubyedge/mrubyedge" }
+r2d2 = "0.8.10"
+redis = { version = "1.1.0", default-features = false, features = ["r2d2"] }
+
+[dev-dependencies]
+mrubyedge = { path = "../mrubyedge/mrubyedge", features = ["default"] }
+mec-mrbc-sys = "3.3.1"
