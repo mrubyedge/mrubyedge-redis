@@ -6,6 +6,11 @@ authors = ["Uchio Kondo <udzura@udzura.jp>"]
 description = "mrubyedge-redis provides Redis and RedisConnectionPool classes for mruby/edge"
 license = "BSD-3-Clause"
 
+[features]
+default = ["tls-native-tls"]
+tls-native-tls = ["redis/tls-native-tls"]
+tls-rustls = ["redis/tls-rustls"]
+
 [dependencies]
 mrubyedge = ">= 1.1.11"
 r2d2 = "0.8.10"
