@@ -10,16 +10,26 @@ pub(crate) struct RedisConnParams {
     pub url: String,
 }
 
-/// Extract common Redis connection kwargs (host, port, tls, username, password)
-/// and build a Redis URL.
+/// Extract common Redis connection kwargs and build a Redis URL.
+/// If `url` kwarg is given, it takes precedence over individual kwargs.
+/// Otherwise, builds URL from `host`, `port`, `tls`, `username`, `password`.
 pub(crate) fn parse_redis_conn_params(vm: &mut VM) -> RedisConnParams {
-    let mut host = "127.0.0.1".to_string();
-    let mut port: u16 = 6379;
-    let mut tls = false;
-    let mut username: Option<String> = None;
-    let mut password: Option<String> = None;
-
     if let Some(kwargs) = vm.get_kwargs() {
+        // url kwarg takes precedence
+        if let Some(u) = kwargs.get("url") {
+            if !u.is_nil() {
+                if let Ok(url) = <&RObject as TryInto<String>>::try_into(u.as_ref()) {
+                    return RedisConnParams { url };
+                }
+            }
+        }
+
+        let mut host = "127.0.0.1".to_string();
+        let mut port: u16 = 6379;
+        let mut tls = false;
+        let mut username: Option<String> = None;
+        let mut password: Option<String> = None;
+
         if let Some(h) = kwargs.get("host") {
             if let Ok(v) = h.as_ref().try_into() {
                 host = v;
@@ -47,17 +57,20 @@ pub(crate) fn parse_redis_conn_params(vm: &mut VM) -> RedisConnParams {
                 }
             }
         }
+
+        let scheme = if tls { "rediss" } else { "redis" };
+        let auth = match (username, password) {
+            (Some(u), Some(p)) => format!("{}:{}@", u, p),
+            (None, Some(p)) => format!(":{}@", p),
+            _ => String::new(),
+        };
+        let url = format!("{}://{}{}:{}", scheme, auth, host, port);
+        return RedisConnParams { url };
     }
 
-    let scheme = if tls { "rediss" } else { "redis" };
-    let auth = match (username, password) {
-        (Some(u), Some(p)) => format!("{}:{}@", u, p),
-        (None, Some(p)) => format!(":{}@", p),
-        _ => String::new(),
-    };
-    let url = format!("{}://{}{}:{}", scheme, auth, host, port);
-
-    RedisConnParams { url }
+    RedisConnParams {
+        url: "redis://127.0.0.1:6379".to_string(),
+    }
 }
 
 pub(crate) fn redis_value_to_robject(val: redis::Value) -> Rc<RObject> {
