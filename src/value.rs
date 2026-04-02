@@ -2,8 +2,63 @@ use std::rc::Rc;
 
 use mrubyedge::{
     Error,
-    yamrb::value::{RObject, RValue},
+    yamrb::{value::{RObject, RValue}, vm::VM},
 };
+
+/// Common connection parameters extracted from kwargs.
+pub(crate) struct RedisConnParams {
+    pub url: String,
+}
+
+/// Extract common Redis connection kwargs (host, port, tls, username, password)
+/// and build a Redis URL.
+pub(crate) fn parse_redis_conn_params(vm: &mut VM) -> RedisConnParams {
+    let mut host = "127.0.0.1".to_string();
+    let mut port: u16 = 6379;
+    let mut tls = false;
+    let mut username: Option<String> = None;
+    let mut password: Option<String> = None;
+
+    if let Some(kwargs) = vm.get_kwargs() {
+        if let Some(h) = kwargs.get("host") {
+            if let Ok(v) = h.as_ref().try_into() {
+                host = v;
+            }
+        }
+        if let Some(p) = kwargs.get("port") {
+            if let Ok(v) = <&RObject as TryInto<i64>>::try_into(p.as_ref()) {
+                port = v as u16;
+            }
+        }
+        if let Some(t) = kwargs.get("tls") {
+            tls = t.is_truthy();
+        }
+        if let Some(u) = kwargs.get("username") {
+            if !u.is_nil() {
+                if let Ok(v) = u.as_ref().try_into() {
+                    username = Some(v);
+                }
+            }
+        }
+        if let Some(p) = kwargs.get("password") {
+            if !p.is_nil() {
+                if let Ok(v) = p.as_ref().try_into() {
+                    password = Some(v);
+                }
+            }
+        }
+    }
+
+    let scheme = if tls { "rediss" } else { "redis" };
+    let auth = match (username, password) {
+        (Some(u), Some(p)) => format!("{}:{}@", u, p),
+        (None, Some(p)) => format!(":{}@", p),
+        _ => String::new(),
+    };
+    let url = format!("{}://{}{}:{}", scheme, auth, host, port);
+
+    RedisConnParams { url }
+}
 
 pub(crate) fn redis_value_to_robject(val: redis::Value) -> Rc<RObject> {
     match val {

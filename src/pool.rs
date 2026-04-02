@@ -13,6 +13,7 @@ use mrubyedge::{
 };
 
 use crate::redis::{make_redis_object, RedisConn, RedisData};
+use crate::value::parse_redis_conn_params;
 
 // ---------------------------------------------------------------------------
 // Internal data types
@@ -78,25 +79,12 @@ fn make_pool_object(vm: &mut VM, pool: r2d2::Pool<redis::Client>) -> Rc<RObject>
 // RedisConnectionPool class methods
 // ---------------------------------------------------------------------------
 
-/// RedisConnectionPool.new(size: 5, timeout: 5, host: "127.0.0.1", port: 6379, tls: false)
+/// RedisConnectionPool.new(size: 5, timeout: 5, host: "127.0.0.1", port: 6379, tls: false, username: nil, password: nil)
 fn mrb_pool_new(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let mut host = "127.0.0.1".to_string();
-    let mut port: u16 = 6379;
-    let mut tls = false;
     let mut size: u32 = 5;
     let mut timeout: u64 = 5;
 
     if let Some(kwargs) = vm.get_kwargs() {
-        if let Some(h) = kwargs.get("host") {
-            host = h.as_ref().try_into()?;
-        }
-        if let Some(p) = kwargs.get("port") {
-            let p_val: i64 = p.as_ref().try_into()?;
-            port = p_val as u16;
-        }
-        if let Some(t) = kwargs.get("tls") {
-            tls = t.is_truthy();
-        }
         if let Some(s) = kwargs.get("size") {
             let s_val: i64 = s.as_ref().try_into()?;
             size = s_val as u32;
@@ -107,9 +95,8 @@ fn mrb_pool_new(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error
         }
     }
 
-    let scheme = if tls { "rediss" } else { "redis" };
-    let url = format!("{}://{}:{}", scheme, host, port);
-    let client = redis::Client::open(url.as_str())
+    let params = parse_redis_conn_params(vm);
+    let client = redis::Client::open(params.url.as_str())
         .map_err(|e| Error::RuntimeError(format!("Redis connection error: {}", e)))?;
     let pool = r2d2::Pool::builder()
         .max_size(size)

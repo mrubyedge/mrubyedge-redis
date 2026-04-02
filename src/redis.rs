@@ -11,7 +11,7 @@ use mrubyedge::{
     },
 };
 
-use crate::value::{redis_value_to_robject, robject_to_redis_arg};
+use crate::value::{parse_redis_conn_params, redis_value_to_robject, robject_to_redis_arg};
 
 // ---------------------------------------------------------------------------
 // Internal data types
@@ -95,28 +95,10 @@ pub(crate) fn make_redis_object(vm: &mut VM, conn: RedisConn) -> Rc<RObject> {
 // Redis class methods
 // ---------------------------------------------------------------------------
 
-/// Redis.new(host: "127.0.0.1", port: 6379, tls: false)
+/// Redis.new(host: "127.0.0.1", port: 6379, tls: false, username: nil, password: nil)
 fn mrb_redis_new(vm: &mut VM, _args: &[Rc<RObject>]) -> Result<Rc<RObject>, Error> {
-    let mut host = "127.0.0.1".to_string();
-    let mut port: u16 = 6379;
-    let mut tls = false;
-
-    if let Some(kwargs) = vm.get_kwargs() {
-        if let Some(h) = kwargs.get("host") {
-            host = h.as_ref().try_into()?;
-        }
-        if let Some(p) = kwargs.get("port") {
-            let p_val: i64 = p.as_ref().try_into()?;
-            port = p_val as u16;
-        }
-        if let Some(t) = kwargs.get("tls") {
-            tls = t.is_truthy();
-        }
-    }
-
-    let scheme = if tls { "rediss" } else { "redis" };
-    let url = format!("{}://{}:{}", scheme, host, port);
-    let client = redis::Client::open(url.as_str())
+    let params = parse_redis_conn_params(vm);
+    let client = redis::Client::open(params.url.as_str())
         .map_err(|e| Error::RuntimeError(format!("Redis connection error: {}", e)))?;
     let conn = client
         .get_connection()
